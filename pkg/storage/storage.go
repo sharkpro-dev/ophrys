@@ -37,6 +37,9 @@ func (ts *TStorage) Open() error {
 }
 
 func (ts *TStorage) Store(i map[string]interface{}) {
+	if i["result"] == nil {
+		return
+	}
 
 	price, err := strconv.ParseFloat(i["p"].(string), 64)
 	if err != nil {
