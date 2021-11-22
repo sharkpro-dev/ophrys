@@ -9,13 +9,15 @@ import (
 )
 
 type TStorage struct {
+	id         string
 	datapath   string
 	connection tstorage.Storage
 	ctx        context.Context
+	c          chan map[string]interface{}
 }
 
 func NewTStorage(datapath string) *TStorage {
-	return &TStorage{datapath: datapath}
+	return &TStorage{id: "TStorage", datapath: datapath}
 }
 
 func (ts *TStorage) Open(ctx context.Context) error {
@@ -31,6 +33,10 @@ func (ts *TStorage) Open(ctx context.Context) error {
 	ts.connection = storage
 
 	return nil
+}
+
+func (ts *TStorage) Id() string {
+	return ts.id
 }
 
 func (ts *TStorage) Store(i map[string]interface{}) {
@@ -56,4 +62,8 @@ func (ts *TStorage) Store(i map[string]interface{}) {
 }
 func (ts *TStorage) Close() {
 	ts.connection.Close()
+}
+
+func (ts *TStorage) C() chan map[string]interface{} {
+	return ts.c
 }

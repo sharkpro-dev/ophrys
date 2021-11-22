@@ -22,6 +22,11 @@ func (oeh *OphrysEngineHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 type HttpAPI struct {
 	port int
+	id   string
+}
+
+func (api *HttpAPI) Id() string {
+	return api.id
 }
 
 func NewHttpAPI(port int) *HttpAPI {
@@ -38,13 +43,15 @@ func subscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) e
 	var p map[string]interface{}
 	json.NewDecoder(r.Body).Decode(&p)
 
-	_, err := w.Write([]byte(fmt.Sprintf("Subscribing to: %s", p["symbol"])))
+	var stream string = p["stream"].(string)
+	var providerId string = p["providerId"].(string)
+	_, err := w.Write([]byte(fmt.Sprintf("Subscribing to: %s in: %s", stream, providerId)))
 
-	var streamId string = string(p["stream"].(string))
-	(*e.Provider).Subscribe(streamId)
+	(*e.GetProvider(providerId)).Subscribe(stream)
 
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

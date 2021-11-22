@@ -12,6 +12,7 @@ import (
 )
 
 type BinanceProvider struct {
+	id         string
 	host       string
 	port       int32
 	connection *websocket.Conn
@@ -28,7 +29,7 @@ type BinanceMessage struct {
 }
 
 func NewBinanceProvider(host string, port int32) *BinanceProvider {
-	return &BinanceProvider{host: host, port: port, done: make(chan struct{}), done2: make(chan struct{}), interrupt: make(chan struct{}), messages: make(chan *BinanceMessage, 30)}
+	return &BinanceProvider{id: "BinanceProvider", host: host, port: port, done: make(chan struct{}), done2: make(chan struct{}), interrupt: make(chan struct{}), messages: make(chan *BinanceMessage, 30)}
 }
 
 func (bp *BinanceProvider) Provide(c chan map[string]interface{}, ctx context.Context) {
@@ -104,6 +105,10 @@ func (bp *BinanceProvider) Provide(c chan map[string]interface{}, ctx context.Co
 			}
 		}
 	}()
+}
+
+func (bp *BinanceProvider) Id() string {
+	return bp.id
 }
 
 func (bp *BinanceProvider) Subscribe(path string) {

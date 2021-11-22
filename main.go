@@ -17,13 +17,14 @@ func main() {
 	flag.Parse()
 	log.SetFlags(0)
 
-	var s engine.Storage = storage.NewTStorage("./data")
-	p := provider.NewBinanceProvider("stream.binance.com", 9443)
-	var bp engine.Provider = p
+	var tstorage engine.Storage = storage.NewTStorage("./data")
+	var binanceProvider engine.Provider = provider.NewBinanceProvider("stream.binance.com", 9443)
+	var httpApi engine.API = api.NewHttpAPI(9000)
 
-	var api engine.API = api.NewHttpAPI(9000)
-
-	e := engine.NewEngine(&bp, &s, &api)
+	e := engine.NewEngine()
+	e.EngageAPI(&httpApi)
+	e.EngageProvider(&binanceProvider)
+	e.EngageStorage(&tstorage)
 	//p.Subscribe("btcusdt@aggTrade")
 	//p.Subscribe("adausdt@aggTrade")
 
