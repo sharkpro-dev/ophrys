@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,11 +10,6 @@ import (
 
 	"github.com/gorilla/websocket"
 )
-
-type Provider interface {
-	Provide(c chan map[string]interface{})
-	Abort()
-}
 
 type BinanceProvider struct {
 	host       string
@@ -35,7 +31,7 @@ func NewBinanceProvider(host string, port int32) *BinanceProvider {
 	return &BinanceProvider{host: host, port: port, done: make(chan struct{}), done2: make(chan struct{}), interrupt: make(chan struct{}), messages: make(chan *BinanceMessage, 30)}
 }
 
-func (bp *BinanceProvider) Provide(c chan map[string]interface{}) {
+func (bp *BinanceProvider) Provide(c chan map[string]interface{}, ctx context.Context) {
 	binanceUrl := fmt.Sprintf("%s:%d", bp.host, bp.port)
 
 	u := url.URL{Scheme: "wss", Host: binanceUrl, Path: "/ws" /*, Path: "/ws/adausdt@aggTrade"*/}
@@ -55,7 +51,7 @@ func (bp *BinanceProvider) Provide(c chan map[string]interface{}) {
 				log.Fatal("ReadMessage: ", err)
 				return
 			}
-			log.Printf("recv: %s", message)
+			log.Printf("%s", message)
 
 			var result map[string]interface{}
 			json.Unmarshal(message, &result)
@@ -110,7 +106,7 @@ func (bp *BinanceProvider) Provide(c chan map[string]interface{}) {
 	}()
 }
 
-func (bp *BinanceProvider) EnqueueSubscription(path string) {
+func (bp *BinanceProvider) Subscribe(path string) {
 	bp.messages <- &BinanceMessage{Method: "SUBSCRIBE", Params: []string{path}, Id: 1}
 
 }

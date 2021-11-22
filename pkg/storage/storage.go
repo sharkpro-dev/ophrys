@@ -1,37 +1,34 @@
 package storage
 
 import (
+	"context"
 	"log"
 	"strconv"
 
 	"github.com/nakabonne/tstorage"
 )
 
-type Storage interface {
-	Open() error
-	Store(i map[string]interface{})
-	Close()
-}
-
 type TStorage struct {
 	datapath   string
 	connection tstorage.Storage
+	ctx        context.Context
 }
 
 func NewTStorage(datapath string) *TStorage {
 	return &TStorage{datapath: datapath}
 }
 
-func (ts *TStorage) Open() error {
-	storage, error := tstorage.NewStorage(
+func (ts *TStorage) Open(ctx context.Context) error {
+	ts.ctx = ctx
+	storage, err := tstorage.NewStorage(
 		tstorage.WithDataPath(ts.datapath),
 	)
 
-	ts.connection = storage
-
-	if error != nil {
-		return error
+	if err != nil {
+		return err
 	}
+
+	ts.connection = storage
 
 	return nil
 }

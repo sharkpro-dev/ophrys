@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"ophrys/pkg/api"
 	"ophrys/pkg/engine"
 	"ophrys/pkg/provider"
 	"ophrys/pkg/storage"
@@ -16,16 +17,19 @@ func main() {
 	flag.Parse()
 	log.SetFlags(0)
 
-	var s storage.Storage = storage.NewTStorage("./data")
+	var s engine.Storage = storage.NewTStorage("./data")
 	p := provider.NewBinanceProvider("stream.binance.com", 9443)
-	var bp provider.Provider = p
+	var bp engine.Provider = p
 
-	e := engine.NewEngine(&bp, &s)
-	//p.EnqueueSubscription("btcusdt@aggTrade")
-	p.EnqueueSubscription("adausdt@aggTrade")
+	var api engine.API = api.NewHttpAPI(9000)
+
+	e := engine.NewEngine(&bp, &s, &api)
+	//p.Subscribe("btcusdt@aggTrade")
+	//p.Subscribe("adausdt@aggTrade")
 
 	e.TurnOn()
 
+	e.Wait()
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 

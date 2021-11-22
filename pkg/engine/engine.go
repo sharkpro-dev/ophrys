@@ -3,46 +3,75 @@ package engine
 import (
 	"context"
 	"fmt"
-	"log"
-	pr "ophrys/pkg/provider"
-	st "ophrys/pkg/storage"
 	"sync"
 )
 
+type Storage interface {
+	Open(ctx context.Context) error
+	Store(i map[string]interface{})
+	Close()
+}
+
+type Provider interface {
+	Provide(c chan map[string]interface{}, ctx context.Context)
+	Subscribe(streamId string)
+	Abort()
+}
+
+type API interface {
+	Engage(*Engine) error
+}
+
 type Engine struct {
-	provider   *pr.Provider
-	storage    *st.Storage
+	Provider   *Provider
+	storage    *Storage
 	marketData chan map[string]interface{}
 	Done       chan struct{}
 	waitGroup  sync.WaitGroup
-	Ctx        context.Context
+	ctx        context.Context
+	api        *API
+	cancelFunc context.CancelFunc
 }
 
-func NewEngine(provider *pr.Provider, storage *st.Storage) *Engine {
-	return &Engine{provider: provider, marketData: make(chan map[string]interface{}), storage: storage, Ctx: context.Background()}
+func NewEngine(provider *Provider, storage *Storage, api *API) *Engine {
+	ctx := context.Background()
+	ctx, cancelFunc := context.WithCancel(ctx)
+
+	return &Engine{Provider: provider, marketData: make(chan map[string]interface{}), storage: storage, ctx: ctx, cancelFunc: cancelFunc, api: api}
 }
 
 func (e *Engine) TurnOn() {
-	(*e.storage).Open()
-	(*e.provider).Provide(e.marketData)
+	go (*e.api).Engage(e)
+	(*e.storage).Open(e.ctx)
+	(*e.Provider).Provide(e.marketData, e.ctx)
+	e.newWorkers(6, handleMarketData)
+}
 
-	for i := 1; i < 4; i++ {
-		go func(n int) {
-			e.waitGroup.Add(1)
-			defer e.waitGroup.Done()
-			for {
-				md := <-e.marketData
-				go (*e.storage).Store(md)
-				log.Printf(fmt.Sprintf("%d", n))
-			}
-		}(i)
+func (e *Engine) Wait() {
+	e.waitGroup.Wait()
+}
+
+func (e *Engine) newWorkers(n int, f func(*Worker)) {
+	for i := 0; i < n; i++ {
+		e.newWorker(fmt.Sprintf("%d", i), f)
+	}
+}
+
+func (e *Engine) newWorker(uuid string, f func(*Worker)) {
+	w := newWorker(uuid, e, f)
+	w.Start()
+}
+
+func handleMarketData(w *Worker) {
+	for {
+		md := <-w.engine.marketData
+		go (*w.engine.storage).Store(md)
+		//log.Printf(w.uuid)
 	}
 }
 
 func (e *Engine) TurnOff() {
-	log.Printf("Attemting to : TurnOff Done")
-	(*e.provider).Abort()
-	(*e.storage).Close()
-	log.Printf("TurnOff Done")
+	close(e.marketData)
+	e.cancelFunc()
 	e.Done <- struct{}{}
 }
