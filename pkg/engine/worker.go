@@ -2,20 +2,32 @@ package engine
 
 import "github.com/google/uuid"
 
+const (
+	WAITING = "WAITING"
+	RUNNING = "RUNNING"
+	STOPPED = "STOPPED"
+)
+
 type Worker struct {
-	uuid   uuid.UUID
-	name   string
+	Uuid   uuid.UUID `json:"uuid"`
+	Name   string    `json:"name"`
 	engine *Engine
 	task   func(w *Worker)
-	loop   bool
+	Status string `json:"status"`
 }
 
 func newWorker(uuid uuid.UUID, name string, engine *Engine, task func(e *Worker)) (w *Worker) {
-	return &Worker{uuid: uuid, name: name, engine: engine, task: task}
+	return &Worker{Uuid: uuid, Name: name, engine: engine, task: task, Status: WAITING}
+}
+
+func (w *Worker) ToJSON() {
+	return
 }
 
 func (w *Worker) Start() {
 	go func() {
+		w.Status = RUNNING
 		w.task(w)
+		w.Status = STOPPED
 	}()
 }

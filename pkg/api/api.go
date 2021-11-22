@@ -35,6 +35,7 @@ func NewHttpAPI(port int) *HttpAPI {
 
 func (api *HttpAPI) Engage(e *engine.Engine) error {
 	http.Handle("/stream/subscribe", &OphrysEngineHandler{e: e, f: subscribeStream})
+	http.Handle("/workers", &OphrysEngineHandler{e: e, f: workersList})
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", api.port), nil)
 }
@@ -48,6 +49,22 @@ func subscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) e
 	_, err := w.Write([]byte(fmt.Sprintf("Subscribing to: %s in: %s", stream, providerId)))
 
 	(*e.GetProvider(providerId)).Subscribe(stream)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func workersList(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
+
+	workersJSON, err := json.Marshal(e.Workers())
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(workersJSON)
 
 	if err != nil {
 		return err

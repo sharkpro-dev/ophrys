@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"sync"
 
 	"github.com/google/uuid"
 )
@@ -34,7 +33,6 @@ type Engine struct {
 	workers    map[uuid.UUID]*Worker
 	marketData chan map[string]interface{}
 	Done       chan struct{}
-	waitGroup  sync.WaitGroup
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 }
@@ -50,7 +48,6 @@ func NewEngine() *Engine {
 		workers:    make(map[uuid.UUID]*Worker),
 		marketData: make(chan map[string]interface{}),
 		Done:       make(chan struct{}),
-		waitGroup:  sync.WaitGroup{},
 		ctx:        ctx,
 		cancelFunc: cancelFunc,
 	}
@@ -83,15 +80,11 @@ func (e *Engine) TurnOn() {
 
 	e.newWorker("startingAPIs", func(*Worker) {
 		for _, api := range e.apis {
-			(*api).Engage(e)
+			go (*api).Engage(e)
 		}
 	})
 
 	e.newWorkers(6, "handleMarketData", handleMarketData)
-}
-
-func (e *Engine) Wait() {
-	e.waitGroup.Wait()
 }
 
 func (e *Engine) newWorkers(n int, name string, f func(*Worker)) {
@@ -120,8 +113,12 @@ func handleMarketData(w *Worker) {
 
 func broadcast(md map[string]interface{}, storages map[string]*Storage) {
 	for _, storage := range storages {
-		(*storage).Store(md)
+		go (*storage).Store(md)
 	}
+}
+
+func (e *Engine) Workers() map[uuid.UUID]*Worker {
+	return e.workers
 }
 
 func (e *Engine) TurnOff() {
