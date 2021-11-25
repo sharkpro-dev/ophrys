@@ -15,27 +15,17 @@ func main() {
 	var binanceProvider engine.Provider = provider.NewBinanceProvider("stream.binance.com", 9443)
 	var httpApi engine.API = api.NewHttpAPI(9000)
 
-	e := engine.NewEngine()
+	e := engine.NewEngine(&tstorage)
 	e.EngageAPI(&httpApi)
 	e.EngageProvider(&binanceProvider)
-	e.EngageStorage(&tstorage)
 
 	e.TurnOn()
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	select {
-	case <-interrupt:
-		log.Println("interrupted")
-		e.TurnOff()
-		select {
-		case <-e.Done:
-			log.Println("interrupttt -> Done")
-			break
-		}
-
-		return
-	}
+	<-interrupt
+	log.Println("interrupted")
+	e.TurnOff()
 
 }

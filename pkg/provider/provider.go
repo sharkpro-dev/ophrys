@@ -16,10 +16,10 @@ type BinanceProvider struct {
 	host       string
 	port       int32
 	connection *websocket.Conn
-	done       chan struct{}
-	done2      chan struct{}
-	interrupt  chan struct{}
 	messages   chan *BinanceMessage
+	ctx        context.Context
+	done       chan struct{}
+	finished   bool
 }
 
 type BinanceMessage struct {
@@ -29,25 +29,27 @@ type BinanceMessage struct {
 }
 
 func NewBinanceProvider(host string, port int32) *BinanceProvider {
-	return &BinanceProvider{id: "BinanceProvider", host: host, port: port, done: make(chan struct{}), done2: make(chan struct{}), interrupt: make(chan struct{}), messages: make(chan *BinanceMessage, 30)}
+	return &BinanceProvider{id: "BinanceProvider", host: host, port: port, done: make(chan struct{}), messages: make(chan *BinanceMessage, 30), finished: false}
 }
 
 func (bp *BinanceProvider) Provide(c chan map[string]interface{}, ctx context.Context) {
+	bp.ctx = ctx
+
 	binanceUrl := fmt.Sprintf("%s:%d", bp.host, bp.port)
 
 	u := url.URL{Scheme: "wss", Host: binanceUrl, Path: "/ws"}
-	log.Printf("[BinanceProvider] Connecting to %s", u.String())
+	log.Printf("Connecting to %s", u.String())
 
-	connection, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	connection, _, err := websocket.DefaultDialer.DialContext(ctx, u.String(), nil)
 	if err != nil {
-		log.Fatal("[BinanceProvider] dial:", err)
+		log.Fatal("FATAL dial:", err)
 	}
 
 	bp.connection = connection
 
 	bp.connection.SetCloseHandler(func(code int, text string) error {
-		log.Printf("[BinanceProvider] CloseHandle: %d |  %s", code, text)
-		bp.done <- struct{}{}
+		log.Printf("CloseHandle: %d |  %s", code, text)
+		close(bp.done)
 		return nil
 	})
 
@@ -55,7 +57,7 @@ func (bp *BinanceProvider) Provide(c chan map[string]interface{}, ctx context.Co
 		for {
 			_, message, err := connection.ReadMessage()
 			if err != nil {
-				log.Fatal("[BinanceProvider] ReadMessage: ", err)
+				log.Printf("ReadMessage: %s", err.Error())
 				return
 			}
 			log.Printf("%s", message)
@@ -63,7 +65,9 @@ func (bp *BinanceProvider) Provide(c chan map[string]interface{}, ctx context.Co
 			var result map[string]interface{}
 			json.Unmarshal(message, &result)
 
-			c <- result
+			if !bp.finished {
+				c <- result
+			}
 		}
 	}()
 
@@ -71,36 +75,36 @@ func (bp *BinanceProvider) Provide(c chan map[string]interface{}, ctx context.Co
 		for {
 			select {
 			case <-bp.done:
-				log.Println("[BinanceProvider] Connection close done")
-				bp.done2 <- struct{}{}
+				log.Println("Connection close done")
 				return
-			case <-bp.interrupt:
-				log.Println("[BinanceProvider] provider interrupted by abort")
+			case <-bp.ctx.Done():
+				log.Println("provider interrupted by context")
+				bp.finished = true
 
 				// Cleanly close the connection by sending a close message and then
 				// waiting (with timeout) for the server to close the connection.
 				err := connection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 				if err != nil {
-					log.Println("[BinanceProvider] write close", err)
+					log.Println("write close", err)
 					return
 				}
-				log.Println("[BinanceProvider] WriteMessage of closing")
+
+				log.Println("WriteMessage of closing")
 				t := time.NewTicker(time.Second * 2)
 				select {
 				case <-bp.done:
-					log.Println("[BinanceProvider] Cleanly closed the connection")
-					bp.done2 <- struct{}{}
+					log.Println("Cleanly closed the connection")
 					return
 				case <-t.C:
-					log.Println("[BinanceProvider] Timeout")
-					bp.done2 <- struct{}{}
+					log.Println("Timeout")
+					close(bp.done)
 					return
 
 				}
 			case message := <-bp.messages:
 				err := bp.connection.WriteJSON(message)
 				if err != nil {
-					log.Fatal("[BinanceProvider] read  message:", err)
+					log.Fatal("FATAL: read message:", err)
 				}
 			}
 		}
@@ -114,12 +118,4 @@ func (bp *BinanceProvider) Id() string {
 func (bp *BinanceProvider) Subscribe(path string) {
 	bp.messages <- &BinanceMessage{Method: "SUBSCRIBE", Params: []string{path}, Id: 1}
 
-}
-
-func (bp *BinanceProvider) Abort() {
-	log.Printf("[BinanceProvider] Interrupting provider")
-	close(bp.interrupt)
-
-	log.Printf("[BinanceProvider] Interruption sent to provider.")
-	<-bp.done2
 }

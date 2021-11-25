@@ -17,7 +17,7 @@ type TStorage struct {
 }
 
 func NewTStorage(datapath string) *TStorage {
-	return &TStorage{id: "TStorage", datapath: datapath}
+	return &TStorage{id: "TStorage", datapath: datapath, c: make(chan map[string]interface{})}
 }
 
 func (ts *TStorage) Open(ctx context.Context) error {
@@ -46,7 +46,7 @@ func (ts *TStorage) Store(i map[string]interface{}) {
 
 	price, err := strconv.ParseFloat(i["p"].(string), 64)
 	if err != nil {
-		log.Fatal("price:", err)
+		log.Fatal("FATAL: price:", err)
 		return
 	}
 

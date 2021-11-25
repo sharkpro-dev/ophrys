@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"ophrys/pkg/engine"
+
+	"github.com/gorilla/mux"
 )
 
 type OphrysEngineHandler struct {
@@ -34,10 +36,11 @@ func NewHttpAPI(port int) *HttpAPI {
 }
 
 func (api *HttpAPI) Engage(e *engine.Engine) error {
-	http.Handle("/stream/subscribe", &OphrysEngineHandler{e: e, f: subscribeStream})
-	http.Handle("/workers", &OphrysEngineHandler{e: e, f: workersList})
+	r := mux.NewRouter()
+	r.Handle("/stream/subscribe", &OphrysEngineHandler{e: e, f: subscribeStream}).Methods(http.MethodPost)
+	r.Handle("/workers", &OphrysEngineHandler{e: e, f: workersList}).Methods(http.MethodGet)
 
-	return http.ListenAndServe(fmt.Sprintf(":%d", api.port), nil)
+	return http.ListenAndServe(fmt.Sprintf(":%d", api.port), r)
 }
 
 func subscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
