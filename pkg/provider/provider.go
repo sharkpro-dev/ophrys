@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/url"
 	"time"
 
@@ -19,17 +20,18 @@ type BinanceProvider struct {
 	messages   chan *BinanceMessage
 	ctx        context.Context
 	done       chan struct{}
-	finished   bool
+	responses  map[int]chan interface{}
 }
 
 type BinanceMessage struct {
 	Method string   `json:"method"`
 	Params []string `json:"params"`
-	Id     int64    `json:"id"`
+	Id     int      `json:"id"`
 }
 
 func NewBinanceProvider(host string, port int32) *BinanceProvider {
-	return &BinanceProvider{id: "BinanceProvider", host: host, port: port, done: make(chan struct{}), messages: make(chan *BinanceMessage, 30), finished: false}
+	return &BinanceProvider{id: "BinanceProvider", host: host, port: port, done: make(chan struct{}), messages: make(chan *BinanceMessage, 30),
+		responses: make(map[int]chan interface{})}
 }
 
 func (bp *BinanceProvider) Provide(c chan map[string]interface{}, ctx context.Context) {
@@ -55,19 +57,31 @@ func (bp *BinanceProvider) Provide(c chan map[string]interface{}, ctx context.Co
 
 	go func() {
 		for {
-			_, message, err := connection.ReadMessage()
+			type_, message, err := connection.ReadMessage()
 			if err != nil {
 				log.Printf("ReadMessage: %s", err.Error())
 				return
 			}
-			log.Printf("%s", message)
+
+			log.Printf("%d, %s", type_, message)
 
 			var result map[string]interface{}
 			json.Unmarshal(message, &result)
 
-			if !bp.finished {
+			var responseChannel chan interface{}
+			id, ok := result["id"]
+
+			if ok {
+				responseChannel, ok = bp.responses[int(id.(float64))]
+			}
+
+			if ok {
+				responseChannel <- result
+				delete(bp.responses, int(id.(float64)))
+			} else {
 				c <- result
 			}
+
 		}
 	}()
 
@@ -79,7 +93,6 @@ func (bp *BinanceProvider) Provide(c chan map[string]interface{}, ctx context.Co
 				return
 			case <-bp.ctx.Done():
 				log.Println("provider interrupted by context")
-				bp.finished = true
 
 				// Cleanly close the connection by sending a close message and then
 				// waiting (with timeout) for the server to close the connection.
@@ -115,7 +128,26 @@ func (bp *BinanceProvider) Id() string {
 	return bp.id
 }
 
-func (bp *BinanceProvider) Subscribe(path string) {
-	bp.messages <- &BinanceMessage{Method: "SUBSCRIBE", Params: []string{path}, Id: 1}
+func (bp *BinanceProvider) Subscribe(path string) chan interface{} {
+	id := rand.Intn(1000)
+	bp.responses[id] = make(chan interface{})
+	bp.messages <- &BinanceMessage{Method: "SUBSCRIBE", Params: []string{path}, Id: id}
 
+	return bp.responses[id]
+}
+
+func (bp *BinanceProvider) Unsubscribe(path string) chan interface{} {
+	id := rand.Intn(1000)
+	bp.responses[id] = make(chan interface{})
+	bp.messages <- &BinanceMessage{Method: "UNSUBSCRIBE", Params: []string{path}, Id: id}
+
+	return bp.responses[id]
+}
+
+func (bp *BinanceProvider) SubscriptionsList() chan interface{} {
+	id := rand.Intn(1000)
+	bp.responses[id] = make(chan interface{})
+	bp.messages <- &BinanceMessage{Method: "LIST_SUBSCRIPTIONS", Id: id}
+
+	return bp.responses[id]
 }

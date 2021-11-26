@@ -38,6 +38,8 @@ func NewHttpAPI(port int) *HttpAPI {
 func (api *HttpAPI) Engage(e *engine.Engine) error {
 	r := mux.NewRouter()
 	r.Handle("/stream/subscribe", &OphrysEngineHandler{e: e, f: subscribeStream}).Methods(http.MethodPost)
+	r.Handle("/stream/unsubscribe", &OphrysEngineHandler{e: e, f: unsubscribeStream}).Methods(http.MethodPost)
+	r.Handle("/subscriptions", &OphrysEngineHandler{e: e, f: subscriptionsList}).Methods(http.MethodGet)
 	r.Handle("/workers", &OphrysEngineHandler{e: e, f: workersList}).Methods(http.MethodGet)
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", api.port), r)
@@ -49,9 +51,15 @@ func subscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) e
 
 	var stream string = p["stream"].(string)
 	var providerId string = p["providerId"].(string)
-	_, err := w.Write([]byte(fmt.Sprintf("Subscribing to: %s in: %s", stream, providerId)))
 
-	(*e.GetProvider(providerId)).Subscribe(stream)
+	subscription := <-(*e.GetProvider(providerId)).Subscribe(stream)
+
+	subscriptionJSON, err := json.Marshal(subscription)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(subscriptionJSON)
 
 	if err != nil {
 		return err
@@ -60,6 +68,50 @@ func subscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) e
 	return nil
 }
 
+func unsubscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
+	var p map[string]interface{}
+	json.NewDecoder(r.Body).Decode(&p)
+
+	var stream string = p["stream"].(string)
+	var providerId string = p["providerId"].(string)
+
+	unsubscription := <-(*e.GetProvider(providerId)).Unsubscribe(stream)
+
+	unsubscriptionJSON, err := json.Marshal(unsubscription)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(unsubscriptionJSON)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func subscriptionsList(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
+	var p map[string]interface{}
+	json.NewDecoder(r.Body).Decode(&p)
+
+	var providerId string = p["providerId"].(string)
+
+	subscriptionList := <-(*e.GetProvider(providerId)).SubscriptionsList()
+
+	subscriptionListJSON, err := json.Marshal(subscriptionList)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(subscriptionListJSON)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 func workersList(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
 
 	workersJSON, err := json.Marshal(e.Workers())

@@ -18,8 +18,9 @@ type Storage interface {
 type Provider interface {
 	Id() string
 	Provide(c chan map[string]interface{}, ctx context.Context)
-	Subscribe(streamId string)
-	//Abort()
+	Subscribe(streamId string) chan interface{}
+	Unsubscribe(streamId string) chan interface{}
+	SubscriptionsList() chan interface{}
 }
 
 type API interface {
