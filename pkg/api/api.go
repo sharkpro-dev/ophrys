@@ -37,15 +37,17 @@ func NewHttpAPI(port int) *HttpAPI {
 
 func (api *HttpAPI) Engage(e *engine.Engine) error {
 	r := mux.NewRouter()
-	r.Handle("/stream/subscribe", &OphrysEngineHandler{e: e, f: subscribeStream}).Methods(http.MethodPost)
-	r.Handle("/stream/unsubscribe", &OphrysEngineHandler{e: e, f: unsubscribeStream}).Methods(http.MethodPost)
-	r.Handle("/subscriptions", &OphrysEngineHandler{e: e, f: subscriptionsList}).Methods(http.MethodGet)
-	r.Handle("/workers", &OphrysEngineHandler{e: e, f: workersList}).Methods(http.MethodGet)
+	r.Handle("/stream/subscribe", &OphrysEngineHandler{e: e, f: subscribeStream}).Methods(http.MethodPost, http.MethodOptions)
+	r.Handle("/stream/unsubscribe", &OphrysEngineHandler{e: e, f: unsubscribeStream}).Methods(http.MethodPost, http.MethodOptions)
+	r.Handle("/subscriptions", &OphrysEngineHandler{e: e, f: subscriptionsList}).Methods(http.MethodGet, http.MethodOptions)
+	r.Handle("/workers", &OphrysEngineHandler{e: e, f: workersList}).Methods(http.MethodGet, http.MethodOptions)
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", api.port), r)
 }
 
 func subscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	var p map[string]interface{}
 	json.NewDecoder(r.Body).Decode(&p)
 
@@ -69,6 +71,8 @@ func subscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) e
 }
 
 func unsubscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	var p map[string]interface{}
 	json.NewDecoder(r.Body).Decode(&p)
 
@@ -92,10 +96,12 @@ func unsubscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request)
 }
 
 func subscriptionsList(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
-	var p map[string]interface{}
-	json.NewDecoder(r.Body).Decode(&p)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-	var providerId string = p["providerId"].(string)
+	providerId := r.URL.Query().Get("providerId")
+
+	log.Println(providerId)
 
 	subscriptionList := <-(*e.GetProvider(providerId)).SubscriptionsList()
 
@@ -113,7 +119,8 @@ func subscriptionsList(e *engine.Engine, w http.ResponseWriter, r *http.Request)
 	return nil
 }
 func workersList(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
-
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	workersJSON, err := json.Marshal(e.Workers())
 	if err != nil {
 		return err
