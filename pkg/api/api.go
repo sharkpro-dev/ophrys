@@ -48,23 +48,27 @@ func (api *HttpAPI) Engage(e *engine.Engine) error {
 func subscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	var p map[string]interface{}
-	json.NewDecoder(r.Body).Decode(&p)
 
-	var stream string = p["stream"].(string)
-	var providerId string = p["providerId"].(string)
+	if r.Method == http.MethodPost {
+		var p map[string]interface{}
 
-	subscription := <-(*e.GetProvider(providerId)).Subscribe(stream)
+		json.NewDecoder(r.Body).Decode(&p)
 
-	subscriptionJSON, err := json.Marshal(subscription)
-	if err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(subscriptionJSON)
+		var stream string = p["stream"].(string)
+		var providerId string = p["providerId"].(string)
 
-	if err != nil {
-		return err
+		subscription := <-(*e.GetProvider(providerId)).Subscribe(stream)
+
+		subscriptionJSON, err := json.Marshal(subscription)
+		if err != nil {
+			return err
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, err = w.Write(subscriptionJSON)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -73,25 +77,27 @@ func subscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) e
 func unsubscribeStream(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	var p map[string]interface{}
-	json.NewDecoder(r.Body).Decode(&p)
 
-	var stream string = p["stream"].(string)
-	var providerId string = p["providerId"].(string)
+	if r.Method == http.MethodPost {
+		var p map[string]interface{}
+		json.NewDecoder(r.Body).Decode(&p)
 
-	unsubscription := <-(*e.GetProvider(providerId)).Unsubscribe(stream)
+		var stream string = p["stream"].(string)
+		var providerId string = p["providerId"].(string)
 
-	unsubscriptionJSON, err := json.Marshal(unsubscription)
-	if err != nil {
-		return err
+		unsubscription := <-(*e.GetProvider(providerId)).Unsubscribe(stream)
+
+		unsubscriptionJSON, err := json.Marshal(unsubscription)
+		if err != nil {
+			return err
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, err = w.Write(unsubscriptionJSON)
+
+		if err != nil {
+			return err
+		}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(unsubscriptionJSON)
-
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
