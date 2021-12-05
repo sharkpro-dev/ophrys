@@ -53,8 +53,8 @@ type Storage interface {
 type Provider interface {
 	Id() string
 	Provide(e *Engine)
-	Subscribe(streamId string) chan interface{}
-	Unsubscribe(streamId string) chan interface{}
+	Subscribe(asset string) interface{}
+	Unsubscribe(asset string) interface{}
 	SubscriptionsList() chan interface{}
 }
 
@@ -72,7 +72,7 @@ type Engine struct {
 	wg           sync.WaitGroup
 	ctx          context.Context
 	cancelFunc   context.CancelFunc
-	depths       map[string]interface{}
+	Depths       map[string]interface{}
 }
 
 func NewEngine(storage *Storage) *Engine {
@@ -94,7 +94,7 @@ func NewEngine(storage *Storage) *Engine {
 		wg:           sync.WaitGroup{},
 		ctx:          ctx,
 		cancelFunc:   cancelFunc,
-		depths:       make(map[string]interface{}),
+		Depths:       make(map[string]interface{}),
 	}
 }
 
@@ -193,7 +193,7 @@ func handleTickers(w *Worker, t interface{}) {
 
 func handleDepths(w *Worker, d interface{}) {
 	ophrysDepth := d.(*OphrysDepth)
-	w.engine.depths[ophrysDepth.Symbol] = ophrysDepth
+	w.engine.Depths[ophrysDepth.Symbol] = ophrysDepth
 }
 
 func storeMarketData(w *Worker, md interface{}) {

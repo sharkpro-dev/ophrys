@@ -15,12 +15,12 @@ import (
 )
 
 const (
-	LIST_SUBSCRIPTIONS   = "LIST_SUBSCRIPTIONS"
-	SUBSCRIBE            = "SUBSCRIBE"
-	UNSUBSCRIBE          = "UNSUBSCRIBE"
+	LIST_SUBSCRIPTIONS = "LIST_SUBSCRIPTIONS"
+	SUBSCRIBE          = "SUBSCRIBE"
+	UNSUBSCRIBE        = "UNSUBSCRIBE"
+
 	MESSAGE_DEPTH_UPDATE = "depthUpdate"
 	MESSAGE_24HR_TICKER  = "24hrTicker"
-	MESSAGE_BOOK_TICKER  = "bookTicker"
 )
 
 type BinanceProvider struct {
@@ -94,8 +94,8 @@ func (bp *BinanceProvider) Provide(e *engine.Engine) {
 				case MESSAGE_DEPTH_UPDATE:
 					e.AcceptDepth(
 						result["s"].(string),
-						interfaceSliceToFloatSlice(result["b"].([]interface{})),
-						interfaceSliceToFloatSlice(result["a"].([]interface{})),
+						interfaceSliceToStringSlice(result["b"].([]interface{})),
+						interfaceSliceToStringSlice(result["a"].([]interface{})),
 					)
 				case MESSAGE_24HR_TICKER:
 
@@ -162,20 +162,39 @@ func (bp *BinanceProvider) Id() string {
 	return bp.id
 }
 
-func (bp *BinanceProvider) Subscribe(path string) chan interface{} {
+func (bp *BinanceProvider) subscribe(path string) chan interface{} {
 	id := rand.Intn(1000)
 	bp.responses[id] = make(chan interface{})
+
 	bp.messages <- &BinanceOutgoingMessage{Method: SUBSCRIBE, Params: []string{path}, Id: id}
 
 	return bp.responses[id]
 }
 
-func (bp *BinanceProvider) Unsubscribe(path string) chan interface{} {
+func (bp *BinanceProvider) Subscribe(asset string) interface{} {
+	response := make([]interface{}, 2)
+
+	response[0] = <-bp.subscribe(fmt.Sprintf("%s@ticker", asset))
+	response[1] = <-bp.subscribe(fmt.Sprintf("%s@depth", asset))
+
+	return response
+}
+
+func (bp *BinanceProvider) unsubscribe(path string) chan interface{} {
 	id := rand.Intn(1000)
 	bp.responses[id] = make(chan interface{})
 	bp.messages <- &BinanceOutgoingMessage{Method: UNSUBSCRIBE, Params: []string{path}, Id: id}
 
 	return bp.responses[id]
+}
+
+func (bp *BinanceProvider) Unsubscribe(asset string) interface{} {
+	response := make([]interface{}, 2)
+
+	response[0] = <-bp.unsubscribe(fmt.Sprintf("%s@ticker", asset))
+	response[1] = <-bp.unsubscribe(fmt.Sprintf("%s@depth", asset))
+
+	return response
 }
 
 func (bp *BinanceProvider) SubscriptionsList() chan interface{} {
@@ -196,7 +215,7 @@ func stringToFloat(s string) float64 {
 	return value
 }
 
-func interfaceSliceToFloatSlice(slice []interface{}) [][]string {
+func interfaceSliceToStringSlice(slice []interface{}) [][]string {
 	var floatSlice [][]string = make([][]string, len(slice))
 
 	for i, d := range slice {
