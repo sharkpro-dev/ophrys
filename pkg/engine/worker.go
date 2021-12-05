@@ -14,12 +14,12 @@ type Worker struct {
 	Uuid   uuid.UUID `json:"uuid"`
 	Name   string    `json:"name"`
 	engine *Engine
-	task   func(w *Worker, data map[string]interface{})
+	task   func(w *Worker, data interface{})
 	Status string `json:"status"`
-	c      chan map[string]interface{}
+	c      chan interface{}
 }
 
-func newWorker(uuid uuid.UUID, name string, engine *Engine, task func(w *Worker, data map[string]interface{}), c chan map[string]interface{}) (w *Worker) {
+func newWorker(uuid uuid.UUID, name string, engine *Engine, task func(w *Worker, data interface{}), c chan interface{}) (w *Worker) {
 	return &Worker{Uuid: uuid, Name: name, engine: engine, task: task, Status: WAITING, c: c}
 }
 
@@ -34,7 +34,6 @@ func (w *Worker) Start() {
 			case data := <-w.c:
 				w.task(w, data)
 			case <-w.engine.ctx.Done():
-				//log.Println("Worker ", w.Name, " Done.")
 				return
 			}
 		}
