@@ -37,9 +37,9 @@ type OphrysTicker struct {
 }
 
 type OphrysDepth struct {
-	symbol string
-	bids   []float64
-	asks   []float64
+	Symbol string     `json:"symbol"`
+	Bids   [][]string `json:"bids"`
+	Asks   [][]string `json:"asks"`
 }
 
 type Storage interface {
@@ -94,6 +94,7 @@ func NewEngine(storage *Storage) *Engine {
 		wg:           sync.WaitGroup{},
 		ctx:          ctx,
 		cancelFunc:   cancelFunc,
+		depths:       make(map[string]interface{}),
 	}
 }
 
@@ -133,11 +134,11 @@ func (e *Engine) newWorkers(n int, name string, f func(*Worker, interface{}), c 
 	}
 }
 
-func (e *Engine) AcceptDepth(symbol string, bids []float64, asks []float64) {
+func (e *Engine) AcceptDepth(symbol string, bids [][]string, asks [][]string) {
 	depth := &OphrysDepth{
-		symbol: symbol,
-		bids:   bids,
-		asks:   asks,
+		Symbol: symbol,
+		Bids:   bids,
+		Asks:   asks,
 	}
 
 	e.depthsChannel() <- depth
@@ -185,14 +186,14 @@ func (e *Engine) depthsChannel() chan interface{} {
 	return e.dataChannels[DEPTHS]
 }
 
-func handleTickers(w *Worker, i interface{}) {
-	ophrysTicker := i.(*OphrysTicker)
+func handleTickers(w *Worker, t interface{}) {
+	ophrysTicker := t.(*OphrysTicker)
 	(*w.engine.storage).C() <- ophrysTicker
 }
 
-func handleDepths(w *Worker, i interface{}) {
-	ophrysDepth := i.(*OphrysDepth)
-	w.engine.depths[ophrysDepth.symbol] = ophrysDepth
+func handleDepths(w *Worker, d interface{}) {
+	ophrysDepth := d.(*OphrysDepth)
+	w.engine.depths[ophrysDepth.Symbol] = ophrysDepth
 }
 
 func storeMarketData(w *Worker, md interface{}) {

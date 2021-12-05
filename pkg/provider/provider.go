@@ -94,8 +94,8 @@ func (bp *BinanceProvider) Provide(e *engine.Engine) {
 				case MESSAGE_DEPTH_UPDATE:
 					e.AcceptDepth(
 						result["s"].(string),
-						result["b"].([]float64),
-						result["a"].([]float64),
+						interfaceSliceToFloatSlice(result["b"].([]interface{})),
+						interfaceSliceToFloatSlice(result["a"].([]interface{})),
 					)
 				case MESSAGE_24HR_TICKER:
 
@@ -194,4 +194,17 @@ func stringToFloat(s string) float64 {
 	}
 
 	return value
+}
+
+func interfaceSliceToFloatSlice(slice []interface{}) [][]string {
+	var floatSlice [][]string = make([][]string, len(slice))
+
+	for i, d := range slice {
+		floatSlice[i] = make([]string, len(d.([]interface{})))
+		for j, e := range d.([]interface{}) {
+			floatSlice[i][j] = e.(string)
+		}
+	}
+
+	return floatSlice
 }
