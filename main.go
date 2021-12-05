@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	var tstorage engine.Storage = storage.NewTStorage("./data")
+	var tstorage engine.Storage = storage.NewPostgresStorage("localhost", 5432, "ophrys", "ophrys", "ophrys")
 	var binanceProvider engine.Provider = provider.NewBinanceProvider("stream.binance.com", 9443)
 	var httpApi engine.API = api.NewHttpAPI(9000)
 

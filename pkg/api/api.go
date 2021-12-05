@@ -107,8 +107,6 @@ func subscriptionsList(e *engine.Engine, w http.ResponseWriter, r *http.Request)
 
 	providerId := r.URL.Query().Get("providerId")
 
-	log.Println(providerId)
-
 	subscriptionList := <-(*e.GetProvider(providerId)).SubscriptionsList()
 
 	subscriptionListJSON, err := json.Marshal(subscriptionList)
