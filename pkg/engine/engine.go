@@ -22,18 +22,18 @@ var MARKET_DATA_CATEGORIES = []string{
 }
 
 type OphrysTicker struct {
-	Time               int64
-	Symbol             string
-	PriceChange        float32
-	PriceChangePercent float32
-	Vwap               float64
-	LastPrice          float64
-	LastQuantity       float64
-	OpeningPrice       float64
-	HighPrice          float64
-	LowPrice           float64
-	TradeVolume        float64
-	NumberOfTrades     int64
+	Time               int64   `json:"time"`
+	Symbol             string  `json:"symbol"`
+	PriceChange        float32 `json:"price_change"`
+	PriceChangePercent float32 `json:"price_change_percent"`
+	Vwap               float64 `json:"vwap"`
+	LastPrice          float64 `json:"last_price"`
+	LastQuantity       float64 `json:"last_quantity"`
+	OpeningPrice       float64 `json:"opening_price"`
+	HighPrice          float64 `json:"high_price"`
+	LowPrice           float64 `json:"low_price"`
+	TradeVolume        float64 `json:"trave_volume"`
+	NumberOfTrades     int64   `json:"number_of_trades"`
 }
 
 type OphrysDepth struct {
@@ -72,7 +72,8 @@ type Engine struct {
 	wg           sync.WaitGroup
 	ctx          context.Context
 	cancelFunc   context.CancelFunc
-	Depths       map[string]interface{}
+	LastDepths   map[string]interface{}
+	LastTickers  map[string]interface{}
 }
 
 func NewEngine(storage *Storage) *Engine {
@@ -94,7 +95,8 @@ func NewEngine(storage *Storage) *Engine {
 		wg:           sync.WaitGroup{},
 		ctx:          ctx,
 		cancelFunc:   cancelFunc,
-		Depths:       make(map[string]interface{}),
+		LastDepths:   make(map[string]interface{}),
+		LastTickers:  make(map[string]interface{}),
 	}
 }
 
@@ -188,12 +190,13 @@ func (e *Engine) depthsChannel() chan interface{} {
 
 func handleTickers(w *Worker, t interface{}) {
 	ophrysTicker := t.(*OphrysTicker)
+	w.engine.LastTickers[ophrysTicker.Symbol] = ophrysTicker
 	(*w.engine.storage).C() <- ophrysTicker
 }
 
 func handleDepths(w *Worker, d interface{}) {
 	ophrysDepth := d.(*OphrysDepth)
-	w.engine.Depths[ophrysDepth.Symbol] = ophrysDepth
+	w.engine.LastDepths[ophrysDepth.Symbol] = ophrysDepth
 }
 
 func storeMarketData(w *Worker, md interface{}) {

@@ -24,6 +24,7 @@ const (
 	ROUTE_ASSET_SUBSCRIBE    = "/asset/subscribe"
 	ROUTE_ASSET_UNSUBSCRIBE  = "/asset/unsubscribe"
 	ROUTE_ASSET_DEPTH        = "/asset/depth"
+	ROUTE_ASSET_TICKER       = "/asset/ticker"
 	ROUTE_SUBSCRIPTIONS_LIST = "/subscriptions"
 	ROUTE_WORKERS            = "/workers"
 )
@@ -61,6 +62,7 @@ func (api *HttpAPI) Engage(e *engine.Engine) error {
 	r.Handle(ROUTE_ASSET_SUBSCRIBE, &OphrysEngineHandler{e: e, f: subscribeAsset}).Methods(http.MethodPost, http.MethodOptions)
 	r.Handle(ROUTE_ASSET_UNSUBSCRIBE, &OphrysEngineHandler{e: e, f: unsubscribeAsset}).Methods(http.MethodPost, http.MethodOptions)
 	r.Handle(ROUTE_ASSET_DEPTH, &OphrysEngineHandler{e: e, f: assetDepth}).Methods(http.MethodGet, http.MethodOptions)
+	r.Handle(ROUTE_ASSET_TICKER, &OphrysEngineHandler{e: e, f: assetTicker}).Methods(http.MethodGet, http.MethodOptions)
 	r.Handle(ROUTE_SUBSCRIPTIONS_LIST, &OphrysEngineHandler{e: e, f: subscriptionsList}).Methods(http.MethodGet, http.MethodOptions)
 	r.Handle(ROUTE_WORKERS, &OphrysEngineHandler{e: e, f: workersList}).Methods(http.MethodGet, http.MethodOptions)
 
@@ -146,7 +148,7 @@ func assetDepth(e *engine.Engine, w http.ResponseWriter, r *http.Request) error 
 	if r.Method == http.MethodGet {
 		asset := r.URL.Query().Get(ASSET_KEY)
 
-		depth := e.Depths[strings.ToUpper(asset)]
+		depth := e.LastDepths[strings.ToUpper(asset)]
 
 		depthJSON, err := json.Marshal(depth)
 		if err != nil {
@@ -154,6 +156,27 @@ func assetDepth(e *engine.Engine, w http.ResponseWriter, r *http.Request) error 
 		}
 		w.Header().Set(HEADER_CONTENT_TYPE, MIME_APPLICATION_JSON)
 		_, err = w.Write(depthJSON)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func assetTicker(e *engine.Engine, w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodGet {
+		asset := r.URL.Query().Get(ASSET_KEY)
+
+		ticker := e.LastTickers[strings.ToUpper(asset)]
+
+		tickerJSON, err := json.Marshal(ticker)
+		if err != nil {
+			return err
+		}
+		w.Header().Set(HEADER_CONTENT_TYPE, MIME_APPLICATION_JSON)
+		_, err = w.Write(tickerJSON)
 
 		if err != nil {
 			return err
