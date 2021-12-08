@@ -32,7 +32,7 @@ type OphrysTicker struct {
 	OpeningPrice       float64 `json:"opening_price"`
 	HighPrice          float64 `json:"high_price"`
 	LowPrice           float64 `json:"low_price"`
-	TradeVolume        float64 `json:"trave_volume"`
+	TradeVolume        float64 `json:"trade_volume"`
 	NumberOfTrades     int64   `json:"number_of_trades"`
 }
 
@@ -72,8 +72,7 @@ type Engine struct {
 	wg           sync.WaitGroup
 	ctx          context.Context
 	cancelFunc   context.CancelFunc
-	LastDepths   map[string]interface{}
-	LastTickers  map[string]interface{}
+	cache        *Cache
 }
 
 func NewEngine(storage *Storage) *Engine {
@@ -95,8 +94,7 @@ func NewEngine(storage *Storage) *Engine {
 		wg:           sync.WaitGroup{},
 		ctx:          ctx,
 		cancelFunc:   cancelFunc,
-		LastDepths:   make(map[string]interface{}),
-		LastTickers:  make(map[string]interface{}),
+		cache:        NewCache(),
 	}
 }
 
@@ -190,13 +188,13 @@ func (e *Engine) depthsChannel() chan interface{} {
 
 func handleTickers(w *Worker, t interface{}) {
 	ophrysTicker := t.(*OphrysTicker)
-	w.engine.LastTickers[ophrysTicker.Symbol] = ophrysTicker
+	w.engine.cache.UpdateLastTicker(ophrysTicker)
 	(*w.engine.storage).C() <- ophrysTicker
 }
 
 func handleDepths(w *Worker, d interface{}) {
 	ophrysDepth := d.(*OphrysDepth)
-	w.engine.LastDepths[ophrysDepth.Symbol] = ophrysDepth
+	w.engine.cache.UpdateLastDepth(ophrysDepth)
 }
 
 func storeMarketData(w *Worker, md interface{}) {
@@ -213,4 +211,12 @@ func (e *Engine) TurnOff() {
 		close(channel)
 	}
 	e.wg.Wait()
+}
+
+func (e *Engine) GetLastTicker(symbol string) *OphrysTicker {
+	return e.cache.GetLastTicker(symbol)
+}
+
+func (e *Engine) GetLastDepth(symbol string) *OphrysDepth {
+	return e.cache.GetLastDepth(symbol)
 }

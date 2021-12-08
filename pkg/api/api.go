@@ -148,7 +148,7 @@ func assetDepth(e *engine.Engine, w http.ResponseWriter, r *http.Request) error 
 	if r.Method == http.MethodGet {
 		asset := r.URL.Query().Get(ASSET_KEY)
 
-		depth := e.LastDepths[strings.ToUpper(asset)]
+		depth := e.GetLastDepth(strings.ToUpper(asset))
 
 		depthJSON, err := json.Marshal(depth)
 		if err != nil {
@@ -169,7 +169,7 @@ func assetTicker(e *engine.Engine, w http.ResponseWriter, r *http.Request) error
 	if r.Method == http.MethodGet {
 		asset := r.URL.Query().Get(ASSET_KEY)
 
-		ticker := e.LastTickers[strings.ToUpper(asset)]
+		ticker := e.GetLastTicker(strings.ToUpper(asset))
 
 		tickerJSON, err := json.Marshal(ticker)
 		if err != nil {
