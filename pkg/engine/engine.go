@@ -11,9 +11,10 @@ const (
 	TICKERS = "tickers"
 	DEPTHS  = "depths"
 
-	WORKER_TICKER_HANDLER = "tickerHandler"
-	WORKER_DEPTH_HANDLER  = "depthHandler"
-	WORKER_TICKER_STORAGE = "tickerStorage"
+	WORKER_TICKER_HANDLER      = "tickerHandler"
+	WORKER_DEPTH_HANDLER       = "depthHandler"
+	WORKER_TICKER_STORAGE      = "tickerStorage"
+	WORKER_TICKER_CALCULATIONS = "tickerCalculations"
 )
 
 var MARKET_DATA_CATEGORIES = []string{
@@ -73,6 +74,7 @@ type Engine struct {
 	ctx          context.Context
 	cancelFunc   context.CancelFunc
 	cache        *Cache
+	stats        *StatisticsCalculationManager
 }
 
 func NewEngine(storage *Storage) *Engine {
@@ -95,6 +97,7 @@ func NewEngine(storage *Storage) *Engine {
 		ctx:          ctx,
 		cancelFunc:   cancelFunc,
 		cache:        NewCache(),
+		stats:        NewStatisticsCalculationManager(),
 	}
 }
 
@@ -126,6 +129,7 @@ func (e *Engine) TurnOn() {
 	e.newWorkers(6, WORKER_TICKER_HANDLER, handleTickers, e.tickersChannel())
 	e.newWorkers(3, WORKER_DEPTH_HANDLER, handleDepths, e.depthsChannel())
 	e.newWorkers(3, WORKER_TICKER_STORAGE, storeMarketData, (*e.storage).C())
+	e.newWorkers(6, WORKER_TICKER_CALCULATIONS, handleTicker, e.stats.C())
 }
 
 func (e *Engine) newWorkers(n int, name string, f func(*Worker, interface{}), c chan interface{}) {
@@ -190,6 +194,7 @@ func handleTickers(w *Worker, t interface{}) {
 	ophrysTicker := t.(*OphrysTicker)
 	w.engine.cache.UpdateLastTicker(ophrysTicker)
 	(*w.engine.storage).C() <- ophrysTicker
+	w.engine.stats.C() <- ophrysTicker
 }
 
 func handleDepths(w *Worker, d interface{}) {
@@ -211,6 +216,19 @@ func (e *Engine) TurnOff() {
 		close(channel)
 	}
 	e.wg.Wait()
+}
+
+func (e *Engine) AddCalculation(name string, f func([]interface{}) float64) {
+	e.stats.addCalculus(name, f)
+}
+func (e *Engine) AddCalculationBucket(bucketSize int) {
+	e.stats.addBucketSize(bucketSize)
+}
+
+func (e *Engine) AddCalculationBuckets(bucketSizes ...int) {
+	for _, bucketSize := range bucketSizes {
+		e.stats.addBucketSize(bucketSize)
+	}
 }
 
 func (e *Engine) GetLastTicker(symbol string) *OphrysTicker {

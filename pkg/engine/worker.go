@@ -19,7 +19,7 @@ type Worker struct {
 	c      chan interface{}
 }
 
-func newWorker(uuid uuid.UUID, name string, engine *Engine, task func(w *Worker, data interface{}), c chan interface{}) (w *Worker) {
+func newWorker(uuid uuid.UUID, name string, engine *Engine, task func(w *Worker, data interface{}), c chan interface{}) *Worker {
 	return &Worker{Uuid: uuid, Name: name, engine: engine, task: task, Status: WAITING, c: c}
 }
 

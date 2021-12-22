@@ -1,4 +1,4 @@
-package provider
+package market
 
 import (
 	"context"
@@ -68,13 +68,13 @@ func (bp *BinanceProvider) Provide(e *engine.Engine) {
 
 	go func() {
 		for {
-			type_, message, err := connection.ReadMessage()
+			_, message, err := connection.ReadMessage()
 			if err != nil {
 				log.Printf("ReadMessage: %s", err.Error())
 				return
 			}
 
-			log.Printf("%d, %s", type_, message)
+			//log.Printf("%d, %s", type_, message)
 
 			var result map[string]interface{}
 			json.Unmarshal(message, &result)

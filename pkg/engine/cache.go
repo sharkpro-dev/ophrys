@@ -1,45 +1,45 @@
 package engine
 
-import "sync"
+import (
+	"ophrys/pkg/adt"
+)
 
 type Cache struct {
-	depthsLock  sync.RWMutex
-	tickersLock sync.RWMutex
-	LastDepths  map[string]*OphrysDepth
-	LastTickers map[string]*OphrysTicker
+	LastDepths  *adt.ConcurrentMap
+	LastTickers *adt.ConcurrentMap
 }
 
 func NewCache() *Cache {
 	return &Cache{
-		LastDepths:  make(map[string]*OphrysDepth),
-		LastTickers: make(map[string]*OphrysTicker),
+		LastDepths:  adt.NewConcurrentMap(),
+		LastTickers: adt.NewConcurrentMap(),
 	}
 }
 
 func (c *Cache) UpdateLastDepth(lastDepth *OphrysDepth) {
-	c.depthsLock.Lock()
-	c.LastDepths[lastDepth.Symbol] = lastDepth
-	c.depthsLock.Unlock()
+	c.LastDepths.Put(lastDepth.Symbol, lastDepth)
 }
 
 func (c *Cache) UpdateLastTicker(lastTicker *OphrysTicker) {
-	c.tickersLock.Lock()
-	c.LastTickers[lastTicker.Symbol] = lastTicker
-	c.tickersLock.Unlock()
+	c.LastTickers.Put(lastTicker.Symbol, lastTicker)
 }
 
 func (c *Cache) GetLastTicker(symbol string) *OphrysTicker {
-	c.tickersLock.RLock()
-	lastTicker := c.LastTickers[symbol]
-	c.tickersLock.RUnlock()
+	ticker, ok := c.LastTickers.Get(symbol)
 
-	return lastTicker
+	if !ok {
+		return nil
+	}
+
+	return ticker.(*OphrysTicker)
 }
 
 func (c *Cache) GetLastDepth(symbol string) *OphrysDepth {
-	c.depthsLock.RLock()
-	lastDepth := c.LastDepths[symbol]
-	c.depthsLock.RUnlock()
+	depth, ok := c.LastDepths.Get(symbol)
 
-	return lastDepth
+	if !ok {
+		return nil
+	}
+
+	return depth.(*OphrysDepth)
 }
