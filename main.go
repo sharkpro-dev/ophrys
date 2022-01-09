@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"flag"
+	"fmt"
 	"ophrys/pkg/api"
 	"ophrys/pkg/engine"
 	"ophrys/pkg/market"
@@ -13,6 +14,12 @@ import (
 )
 
 func main() {
+	secretKeyPtr := flag.String("secretKey", "", "Market Client Secret Key.")
+	apiKeyPtr := flag.String("apiKey", "", "Market Client API Key")
+	flag.Parse()
+	fmt.Printf("secretKeyPtr: %s, apiKeyPtr: %s\n", *secretKeyPtr, *apiKeyPtr)
+
+	var binanceClient engine.MarketClient = market.NewBinanceClient("https://api.binance.com", *apiKeyPtr, *secretKeyPtr)
 	var tstorage engine.Storage = storage.NewPostgresStorage("localhost", 5432, "ophrys", "ophrys", "ophrys")
 	var binanceProvider engine.Provider = market.NewBinanceProvider("stream.binance.com", 9443)
 	var httpApi engine.API = api.NewHttpAPI(9000)
@@ -20,6 +27,7 @@ func main() {
 	e := engine.NewEngine(&tstorage)
 	e.EngageAPI(&httpApi)
 	e.EngageProvider(&binanceProvider)
+	e.EngageMarketClient(&binanceClient)
 
 	e.AddCalculationBuckets(10, 100, 1000)
 
@@ -31,20 +39,12 @@ func main() {
 		return stat.Mean(lastPrices, nil)
 	})
 
-	e.AddCalculation("lastPrice1Moment", func(tickers []interface{}) float64 {
+	e.AddCalculation("lastPriceStdDev", func(tickers []interface{}) float64 {
 		var lastPrices []float64
 		for _, ticker := range tickers {
 			lastPrices = append(lastPrices, ticker.(*engine.OphrysTicker).LastPrice)
 		}
-		return stat.Moment(1, lastPrices, nil)
-	})
-
-	e.AddCalculation("lastPriceEntropy", func(tickers []interface{}) float64 {
-		var lastPrices []float64
-		for _, ticker := range tickers {
-			lastPrices = append(lastPrices, ticker.(*engine.OphrysTicker).LastPrice)
-		}
-		return stat.Entropy(lastPrices)
+		return stat.StdDev(lastPrices, nil)
 	})
 
 	e.TurnOn()
@@ -53,7 +53,6 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt)
 
 	<-interrupt
-	log.Println("interrupted")
 	e.TurnOff()
 
 }

@@ -43,6 +43,61 @@ type OphrysDepth struct {
 	Asks   [][]string `json:"asks"`
 }
 
+type OrderResponse struct {
+	ClientOrderId string `json:"clientOrderId"`
+	CumQty        string `json:"cumQty"`
+	CumQuote      string `json:"cumQuote"`
+	ExecutedQty   string `json:"executedQty"`
+	OrderId       int    `json:"orderId"`
+	AvgPrice      string `json:"avgPrice"`
+	OrigQty       string `json:"origQty"`
+	Price         string `json:"price"`
+	Side          string `json:"side"`
+	PositionSide  string `json:"positionSide"`
+	Status        string `json:"status"`
+	Symbol        string `json:"symbol"`
+	Type_         string `json:"type"`
+	OrigType      string `json:"origType"`
+	UpdateTime    int    `json:"updateTime"`
+}
+
+type CancelOrderResponse struct {
+	ClientOrderId string `json:"clientOrderId"`
+	CumQty        string `json:"cumQty"`
+	CumQuote      string `json:"cumQuote"`
+	ExecutedQty   string `json:"executedQty"`
+	OrderId       int    `json:"orderId"`
+	OrigQty       string `json:"origQty"`
+	OrigType      string `json:"origType"`
+	Price         string `json:"price"`
+	ReduceOnly    string `json:"reduceOnly"`
+	Side          string `json:"side"`
+	PositionSide  string `json:"positionSide"`
+	Status        string `json:"status"`
+	ClosePosition string `json:"closePosition"`
+	Symbol        string `json:"symbol"`
+	TimeInForce   string `json:"timeInForce"`
+	Type_         string `json:"type"`
+}
+
+type AccountInformationResponse struct {
+	MakerCommission  float64 `json:"makerCommission"`
+	TakerCommission  float64 `json:"takerCommission"`
+	BuyerCommission  float64 `json:"buyerCommission"`
+	SellerCommission float64 `json:"sellerCommission"`
+	CanTrade         bool    `json:"canTrade"`
+	CanWithdraw      bool    `json:"canWithdraw"`
+	CanDeposit       bool    `json:"canDeposit"`
+	AccountType      string  `json:"accountType"`
+	Assets           []*AssetHolding
+}
+
+type AssetHolding struct {
+	Asset  string `json:"asset"`
+	Free   string `json:"free"`
+	Locked string `json:"locked"`
+}
+
 type Storage interface {
 	Id() string
 	Open(ctx context.Context) error
@@ -64,7 +119,16 @@ type API interface {
 	Engage(*Engine) error
 }
 
+type MarketClient interface {
+	AccountInformation() *AccountInformationResponse
+	NewOrder(symbol string, side string, type_ string, timeInForce string, quantity float64, price float64) *OrderResponse
+	AllOrders(symbol string, startTime int64, endTime int64, limit int) []*OrderResponse
+	CancelAllOrders(symbol string) bool
+	CancelOrder(symbol string, orderId int64) *CancelOrderResponse
+}
+
 type Engine struct {
+	marketClient *MarketClient
 	providers    map[string]*Provider
 	storage      *Storage
 	apis         map[string]*API
@@ -107,6 +171,10 @@ func (e *Engine) EngageAPI(api *API) {
 
 func (e *Engine) EngageProvider(provider *Provider) {
 	e.providers[(*provider).Id()] = provider
+}
+
+func (e *Engine) EngageMarketClient(marketClient *MarketClient) {
+	e.marketClient = marketClient
 }
 
 func (e *Engine) TurnOn() {
