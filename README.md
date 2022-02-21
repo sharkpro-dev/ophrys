@@ -1,6 +1,6 @@
 # ophrys
 
-Framework that provides tools to do a efficient algorithmic trading.
+Framework that provides tools to do an efficient algorithmic trading.
 
 
 ### How it works
@@ -11,12 +11,12 @@ It has an engine that can have attachments to work as needed.
 
 ### Markets
 
-There is a developed attachment to start trading in Binance. 
+There is a developed attachment to start trading in Binance. It also can be extended to operate in different markets.
 
 
 ### GUI
 
-It also counts with a Front End that is currently in development.
+It also counts with a Front End that is currently under development.
 
 https://github.com/gonzaloea/ophrys-gui
 
